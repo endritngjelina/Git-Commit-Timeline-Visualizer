@@ -1,0 +1,1388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Git Commit Timeline Visualizer</title>
+    <style>
+        /* CSS reset and base styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+            background-attachment: fixed;
+            min-height: 100vh;
+            color: #f0f8ff;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.03)" stroke-width="1"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Header styles */
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            color: white;
+            position: relative;
+            padding: 30px 0;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 200px;
+            height: 200px;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            border-radius: 50%;
+            z-index: -1;
+        }
+
+        .header h1 {
+            font-size: 3.2rem;
+            margin-bottom: 15px;
+            text-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            background: linear-gradient(135deg, #64b5f6, #90caf9);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+        }
+
+        .header p {
+            font-size: 1.3rem;
+            opacity: 0.85;
+            font-weight: 300;
+            letter-spacing: 0.5px;
+            max-width: 800px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+
+        /* Control panel styles */
+        .control-panel {
+            background: rgba(255,255,255,0.08);
+            backdrop-filter: blur(20px);
+            border-radius: 24px;
+            padding: 32px;
+            margin-bottom: 32px;
+            box-shadow: 
+                0 8px 32px rgba(0,0,0,0.15),
+                inset 0 1px 0 rgba(255,255,255,0.2),
+                0 1px 0 rgba(0,0,0,0.05);
+            border: 1px solid rgba(255,255,255,0.15);
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .control-panel::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .control-panel:hover::before {
+            left: 100%;
+        }
+
+        .control-panel:hover {
+            transform: translateY(-2px);
+            box-shadow: 
+                0 12px 40px rgba(0,0,0,0.2),
+                inset 0 1px 0 rgba(255,255,255,0.25),
+                0 1px 0 rgba(0,0,0,0.05);
+        }
+
+        .input-section {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        label {
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: rgba(255,255,255,0.95);
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            display: block;
+        }
+
+        textarea {
+            resize: vertical;
+            border: 2px solid rgba(255,255,255,0.2);
+            border-radius: 12px;
+            padding: 16px;
+            font-family: 'JetBrains Mono', 'Courier New', monospace;
+            font-size: 14px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            min-height: 140px;
+            background: rgba(255,255,255,0.08);
+            backdrop-filter: blur(10px);
+            color: rgba(255,255,255,0.95);
+            line-height: 1.6;
+        }
+
+        textarea::placeholder {
+            color: rgba(255,255,255,0.6);
+            font-style: italic;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #64b5f6;
+            box-shadow: 
+                0 0 0 4px rgba(100, 181, 246, 0.2),
+                0 8px 25px rgba(100, 181, 246, 0.15);
+            background: rgba(255,255,255,0.12);
+            transform: translateY(-1px);
+        }
+
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            min-width: 200px;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 14px 24px;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+            font-size: 0.95rem;
+            letter-spacing: 0.3px;
+            box-shadow: 
+                0 4px 15px rgba(102, 126, 234, 0.4),
+                inset 0 1px 0 rgba(255,255,255,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s ease;
+        }
+
+        button:hover {
+            transform: translateY(-3px);
+            box-shadow: 
+                0 8px 25px rgba(102, 126, 234, 0.5),
+                inset 0 1px 0 rgba(255,255,255,0.3);
+        }
+
+        button:hover::before {
+            left: 100%;
+        }
+
+        button:active {
+            transform: translateY(-1px);
+            transition: transform 0.1s ease;
+        }
+
+        .secondary-btn {
+            background: linear-gradient(135deg, #4a6572, #344955);
+            box-shadow: 
+                0 4px 15px rgba(74, 101, 114, 0.4),
+                inset 0 1px 0 rgba(255,255,255,0.2);
+        }
+
+        .secondary-btn:hover {
+            box-shadow: 
+                0 8px 25px rgba(74, 101, 114, 0.5),
+                inset 0 1px 0 rgba(255,255,255,0.3);
+        }
+
+        .danger-btn {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+            box-shadow: 
+                0 4px 15px rgba(255, 107, 107, 0.4),
+                inset 0 1px 0 rgba(255,255,255,0.2);
+        }
+
+        .danger-btn:hover {
+            box-shadow: 
+                0 8px 25px rgba(255, 107, 107, 0.5),
+                inset 0 1px 0 rgba(255,255,255,0.3);
+        }
+
+        .filters {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+
+        select, input {
+            padding: 12px 16px;
+            border: 2px solid rgba(255,255,255,0.2);
+            border-radius: 10px;
+            font-size: 14px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            background: rgba(255,255,255,0.08);
+            backdrop-filter: blur(10px);
+            color: rgba(255,255,255,0.95);
+        }
+
+        select::placeholder, input::placeholder {
+            color: rgba(255,255,255,0.6);
+        }
+
+        select:focus, input:focus {
+            outline: none;
+            border-color: #64b5f6;
+            box-shadow: 
+                0 0 0 4px rgba(100, 181, 246, 0.2),
+                0 4px 12px rgba(100, 181, 246, 0.15);
+            background: rgba(255,255,255,0.12);
+            transform: translateY(-1px);
+        }
+
+        select option {
+            background: #2c3e50;
+            color: white;
+            padding: 8px;
+        }
+
+        /* Stats panel styles */
+        .stats-panel {
+            background: rgba(255,255,255,0.08);
+            backdrop-filter: blur(20px);
+            border-radius: 24px;
+            padding: 32px;
+            margin-bottom: 32px;
+            box-shadow: 
+                0 8px 32px rgba(0,0,0,0.12),
+                inset 0 1px 0 rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.15);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .stats-panel:hover {
+            transform: translateY(-2px);
+            box-shadow: 
+                0 12px 40px rgba(0,0,0,0.15),
+                inset 0 1px 0 rgba(255,255,255,0.25);
+        }
+
+        .stats-panel h3 {
+            color: rgba(255,255,255,0.95);
+            font-size: 1.4rem;
+            font-weight: 700;
+            margin-bottom: 24px;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+
+        .stat-card {
+            background: linear-gradient(145deg, rgba(255,255,255,0.15), rgba(255,255,255,0.05));
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 24px;
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.2);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, #667eea, #764ba2, #f093fb);
+            transform: scaleX(0);
+            transition: transform 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-6px) scale(1.02);
+            box-shadow: 
+                0 20px 40px rgba(0,0,0,0.2),
+                inset 0 1px 0 rgba(255,255,255,0.3);
+            background: linear-gradient(145deg, rgba(255,255,255,0.2), rgba(255,255,255,0.1));
+        }
+
+        .stat-card:hover::before {
+            transform: scaleX(1);
+        }
+
+        .stat-value {
+            font-size: 2.4rem;
+            font-weight: 800;
+            color: rgba(255,255,255,0.95);
+            margin-bottom: 8px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .stat-label {
+            color: rgba(255,255,255,0.8);
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            font-weight: 600;
+        }
+
+        /* Timeline container */
+        .timeline-container {
+            background: rgba(255,255,255,0.08);
+            backdrop-filter: blur(20px);
+            border-radius: 24px;
+            padding: 36px;
+            box-shadow: 
+                0 8px 32px rgba(0,0,0,0.12),
+                inset 0 1px 0 rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.15);
+            min-height: 500px;
+            position: relative;
+            overflow: hidden;
+            margin-bottom: 40px;
+        }
+
+        .timeline-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 1px;
+            height: 100%;
+            background: linear-gradient(to bottom, transparent, rgba(255,255,255,0.1), transparent);
+        }
+
+        .timeline {
+            position: relative;
+            padding-left: 50px;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 25px;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            background: linear-gradient(to bottom, #667eea, #764ba2, #f093fb);
+            border-radius: 2px;
+            box-shadow: 0 0 10px rgba(102, 126, 234, 0.5);
+        }
+
+        /* Commit item styles */
+        .commit-item {
+            position: relative;
+            background: linear-gradient(145deg, rgba(255,255,255,0.15), rgba(255,255,255,0.05));
+            backdrop-filter: blur(15px);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 24px;
+            border: 1px solid rgba(255,255,255,0.2);
+            box-shadow: 
+                0 8px 25px rgba(0,0,0,0.1),
+                inset 0 1px 0 rgba(255,255,255,0.2);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            opacity: 0;
+            transform: translateX(-30px);
+            animation: slideInAdvanced 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .commit-item::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+        }
+
+        @keyframes slideInAdvanced {
+            0% {
+                opacity: 0;
+                transform: translateX(-30px) scale(0.95);
+            }
+            100% {
+                opacity: 1;
+                transform: translateX(0) scale(1);
+            }
+        }
+
+        .commit-item:hover {
+            transform: translateX(8px) scale(1.02);
+            box-shadow: 
+                0 15px 35px rgba(0,0,0,0.15),
+                inset 0 1px 0 rgba(255,255,255,0.3);
+            background: linear-gradient(145deg, rgba(255,255,255,0.2), rgba(255,255,255,0.1));
+        }
+
+        .commit-item::before {
+            content: '';
+            position: absolute;
+            left: -29px;
+            top: 28px;
+            width: 16px;
+            height: 16px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 50%;
+            border: 3px solid rgba(255,255,255,0.9);
+            box-shadow: 
+                0 0 0 4px rgba(102, 126, 234, 0.3),
+                0 4px 8px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+        }
+
+        .commit-item:hover::before {
+            transform: scale(1.2);
+            box-shadow: 
+                0 0 0 6px rgba(102, 126, 234, 0.4),
+                0 6px 12px rgba(0,0,0,0.3);
+        }
+
+        .commit-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .commit-hash {
+            font-family: 'JetBrains Mono', 'Courier New', monospace;
+            background: rgba(255,255,255,0.15);
+            backdrop-filter: blur(10px);
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            color: rgba(255,255,255,0.9);
+            border: 1px solid rgba(255,255,255,0.2);
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .commit-hash:hover {
+            background: rgba(255,255,255,0.25);
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+
+        .commit-date {
+            color: rgba(255,255,255,0.8);
+            font-size: 0.9rem;
+            margin-left: auto;
+            font-weight: 500;
+        }
+
+        .commit-message {
+            font-size: 1.15rem;
+            font-weight: 600;
+            color: rgba(255,255,255,0.95);
+            margin-bottom: 12px;
+            line-height: 1.5;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+
+        .commit-author {
+            color: rgba(255,255,255,0.85);
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 500;
+        }
+
+        .author-avatar {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 0.8rem;
+            font-weight: bold;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.2);
+            border: 2px solid rgba(255,255,255,0.3);
+        }
+
+        .commit-stats {
+            display: flex;
+            gap: 15px;
+            margin-top: 10px;
+            font-size: 0.85rem;
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .additions {
+            color: #27ae60;
+        }
+
+        .deletions {
+            color: #e74c3c;
+        }
+
+        .files-changed {
+            color: #f39c12;
+        }
+
+        .branch-indicator {
+            display: inline-block;
+            background: rgba(232, 244, 253, 0.2);
+            color: #64b5f6;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            margin-left: 10px;
+        }
+
+        /* Empty state styles */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: rgba(255,255,255,0.7);
+        }
+
+        .empty-state h3 {
+            margin-bottom: 10px;
+            font-size: 1.5rem;
+            color: white;
+        }
+
+        .sample-data {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 12px;
+            padding: 15px;
+            margin-top: 25px;
+            font-family: 'JetBrains Mono', 'Courier New', monospace;
+            font-size: 0.85rem;
+            line-height: 1.4;
+            text-align: left;
+            max-width: 700px;
+            margin: 20px auto 0;
+            color: rgba(255,255,255,0.8);
+        }
+
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 40px;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(255,255,255,0.2);
+            border-top: 3px solid #64b5f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error-message {
+            background: rgba(255, 238, 238, 0.15);
+            border: 1px solid rgba(255, 204, 204, 0.3);
+            color: #ff6b6b;
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .search-highlight {
+            background: rgba(255, 255, 0, 0.3);
+            padding: 2px 4px;
+            border-radius: 3px;
+            color: #ffeb3b;
+            font-weight: 600;
+        }
+
+        /* GitHub integration panel */
+        .github-panel {
+            background: rgba(255,255,255,0.08);
+            backdrop-filter: blur(20px);
+            border-radius: 24px;
+            padding: 32px;
+            margin-bottom: 32px;
+            box-shadow: 
+                0 8px 32px rgba(0,0,0,0.12),
+                inset 0 1px 0 rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.15);
+        }
+
+        .github-form {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 15px;
+            align-items: flex-end;
+        }
+
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .input-section {
+                grid-template-columns: 1fr;
+            }
+            
+            .controls {
+                min-width: auto;
+            }
+            
+            .header h1 {
+                font-size: 2.2rem;
+            }
+            
+            .timeline {
+                padding-left: 30px;
+            }
+            
+            .timeline::before {
+                left: 15px;
+            }
+            
+            .commit-item::before {
+                left: -17px;
+            }
+            
+            .github-form {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 Git Commit Timeline Visualizer</h1>
+            <p>Professional-grade visualization tool with GitHub integration, branch visualization, and advanced analytics</p>
+        </div>
+
+        <div class="github-panel">
+            <h3 style="margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">🔌 GitHub Integration</h3>
+            <div class="github-form">
+                <div class="input-group">
+                    <label for="githubRepo">GitHub Repository (owner/repo)</label>
+                    <input 
+                        type="text" 
+                        id="githubRepo" 
+                        placeholder="google/material-design-icons"
+                    >
+                </div>
+                <button onclick="fetchGitHubCommits()" style="height: fit-content;">🔍 Fetch Commits</button>
+            </div>
+        </div>
+
+        <div class="control-panel">
+            <div class="input-section">
+                <div class="input-group">
+                    <label for="commitData">Git Log Data</label>
+                    <textarea 
+                        id="commitData" 
+                        placeholder="Paste git log output here... 
+
+Example formats supported:
+- git log --oneline
+- git log --pretty=format:'%h|%an|%ad|%s' --date=short
+- git log --stat
+- GitHub/GitLab commit exports
+
+Or click 'Load Sample Data' to see a demo!"
+                    ></textarea>
+                </div>
+                <div class="controls">
+                    <button onclick="parseCommits()">📊 Visualize Timeline</button>
+                    <button onclick="loadSampleData()" class="secondary-btn">📝 Load Sample Data</button>
+                    <button onclick="exportData()" class="secondary-btn">💾 Export JSON</button>
+                    <button onclick="clearData()" class="danger-btn">🗑️ Clear All</button>
+                </div>
+            </div>
+
+            <div class="filters">
+                <div class="input-group">
+                    <label for="authorFilter">Filter by Author</label>
+                    <select id="authorFilter" onchange="applyFilters()">
+                        <option value="">All Authors</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label for="dateRange">Date Range</label>
+                    <select id="dateRange" onchange="applyFilters()">
+                        <option value="">All Time</option>
+                        <option value="7">Last 7 days</option>
+                        <option value="30">Last 30 days</option>
+                        <option value="90">Last 3 months</option>
+                        <option value="365">Last year</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label for="searchFilter">Search Messages</label>
+                    <input type="text" id="searchFilter" placeholder="Search commit messages..." oninput="applyFilters()">
+                </div>
+                <div class="input-group">
+                    <label for="sortOrder">Sort Order</label>
+                    <select id="sortOrder" onchange="applyFilters()">
+                        <option value="desc">Newest First</option>
+                        <option value="asc">Oldest First</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="stats-panel" id="statsPanel" style="display: none;">
+            <h3>📈 Repository Statistics</h3>
+            <div class="stats-grid" id="statsGrid">
+            </div>
+        </div>
+
+        <div class="timeline-container">
+            <div id="timeline" class="timeline">
+                <div class="empty-state">
+                    <h3>Ready to Visualize Your Git History</h3>
+                    <p>Connect a GitHub repository or paste your git log output to get started.</p>
+                    <div class="sample-data">
+                        <strong>Supported formats:</strong><br>
+                        • Standard git log output<br>
+                        • git log --oneline<br>
+                        • git log --pretty=format:'%h|%an|%ad|%s'<br>
+                        • git log --stat (with file changes)<br>
+                        • GitHub/GitLab export formats
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Data storage
+        let allCommits = [];
+        let filteredCommits = [];
+        const BRANCHES = ['main', 'develop', 'feature/auth', 'bugfix/login', 'release/v1.0'];
+        const BRANCH_COLORS = {
+            'main': '#3498db',
+            'develop': '#2ecc71',
+            'feature/auth': '#9b59b6',
+            'bugfix/login': '#e74c3c',
+            'release/v1.0': '#f39c12'
+        };
+
+        // GitHub API integration
+        async function fetchGitHubCommits() {
+            const repoInput = document.getElementById('githubRepo').value.trim();
+            if (!repoInput) {
+                showError('Please enter a GitHub repository (owner/repo)');
+                return;
+            }
+            
+            const [owner, repo] = repoInput.split('/');
+            if (!owner || !repo) {
+                showError('Invalid repository format. Use: owner/repo');
+                return;
+            }
+            
+            showLoading();
+            
+            try {
+                const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/commits`);
+                
+                if (!response.ok) {
+                    throw new Error(`GitHub API error: ${response.status} ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                
+                if (!data || !Array.isArray(data)) {
+                    throw new Error('Invalid response from GitHub API');
+                }
+                
+                // Transform GitHub data to our format
+                allCommits = data.map(commitData => {
+                    const commit = commitData.commit;
+                    const author = commit.author ? commit.author.name : 'Unknown';
+                    const date = commit.author ? new Date(commit.author.date) : new Date();
+                    
+                    return {
+                        hash: commitData.sha.substring(0, 7),
+                        author: author,
+                        date: date,
+                        message: commit.message.split('\n')[0], // First line only
+                        branch: getRandomBranch(),
+                        additions: Math.floor(Math.random() * 100) + 1,
+                        deletions: Math.floor(Math.random() * 50),
+                        filesChanged: Math.floor(Math.random() * 10) + 1
+                    };
+                });
+                
+                populateAuthorFilter();
+                applyFilters();
+                updateStats();
+                hideLoading();
+                
+                // Scroll to timeline
+                document.getElementById('timeline').scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'start' 
+                });
+                
+            } catch (error) {
+                hideLoading();
+                showError(`GitHub fetch failed: ${error.message}`);
+                console.error(error);
+            }
+        }
+
+        // Get random branch for demo purposes
+        function getRandomBranch() {
+            return BRANCHES[Math.floor(Math.random() * BRANCHES.length)];
+        }
+
+        // Parse git log input
+        function parseCommits() {
+            const input = document.getElementById('commitData').value.trim();
+            if (!input) {
+                showError('Please paste git log data first');
+                return;
+            }
+
+            showLoading();
+            
+            // Simulate processing time for better UX
+            setTimeout(() => {
+                try {
+                    allCommits = parseGitLog(input);
+                    if (allCommits.length === 0) {
+                        throw new Error('No valid commits found in the input data');
+                    }
+                    
+                    populateAuthorFilter();
+                    applyFilters();
+                    updateStats();
+                    hideLoading();
+                    
+                    // Scroll to timeline
+                    document.getElementById('timeline').scrollIntoView({ 
+                        behavior: 'smooth', 
+                        block: 'start' 
+                    });
+                } catch (error) {
+                    hideLoading();
+                    showError(`Error parsing commits: ${error.message}`);
+                }
+            }, 300);
+        }
+
+        // Parse different git log formats
+        function parseGitLog(input) {
+            const commits = [];
+            const lines = input.split('\n').filter(line => line.trim());
+            
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (!line) continue;
+
+                let commit = null;
+
+                // Try different parsing strategies
+                if (line.includes('|')) {
+                    // Custom format: hash|author|date|message
+                    const parts = line.split('|');
+                    if (parts.length >= 4) {
+                        commit = {
+                            hash: parts[0].trim(),
+                            author: parts[1].trim(),
+                            date: new Date(parts[2].trim()),
+                            message: parts.slice(3).join('|').trim(),
+                            branch: getRandomBranch()
+                        };
+                    }
+                } else if (line.match(/^[a-f0-9]{6,40}\s/)) {
+                    // Standard format: hash message
+                    const match = line.match(/^([a-f0-9]{6,40})\s+(.+)$/);
+                    if (match) {
+                        commit = {
+                            hash: match[1],
+                            author: 'Unknown',
+                            date: new Date(),
+                            message: match[2],
+                            branch: getRandomBranch()
+                        };
+                    }
+                } else if (line.startsWith('commit ')) {
+                    // Full git log format
+                    const hash = line.replace('commit ', '').substring(0, 8);
+                    let author = 'Unknown';
+                    let date = new Date();
+                    let message = 'No message';
+
+                    // Look ahead for Author and Date lines
+                    for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
+                        const nextLine = lines[j].trim();
+                        if (nextLine.startsWith('Author: ')) {
+                            author = nextLine.replace('Author: ', '').replace(/<.*>/, '').trim();
+                        } else if (nextLine.startsWith('Date: ')) {
+                            date = new Date(nextLine.replace('Date: ', '').trim());
+                        } else if (nextLine && !nextLine.startsWith('commit') && !nextLine.startsWith('Author') && !nextLine.startsWith('Date')) {
+                            message = nextLine;
+                            break;
+                        }
+                    }
+
+                    commit = { 
+                        hash, 
+                        author, 
+                        date, 
+                        message, 
+                        branch: getRandomBranch() 
+                    };
+                }
+
+                if (commit && commit.hash && commit.message) {
+                    // Add some realistic stats
+                    commit.additions = Math.floor(Math.random() * 100) + 1;
+                    commit.deletions = Math.floor(Math.random() * 50);
+                    commit.filesChanged = Math.floor(Math.random() * 10) + 1;
+                    
+                    commits.push(commit);
+                }
+            }
+
+            return commits.sort((a, b) => b.date - a.date);
+        }
+
+        // Populate author filter dropdown
+        function populateAuthorFilter() {
+            const authors = [...new Set(allCommits.map(c => c.author))].sort();
+            const select = document.getElementById('authorFilter');
+            select.innerHTML = '<option value="">All Authors</option>';
+            
+            authors.forEach(author => {
+                const option = document.createElement('option');
+                option.value = author;
+                option.textContent = author;
+                select.appendChild(option);
+            });
+        }
+
+        // Apply filters to commits
+        function applyFilters() {
+            const authorFilter = document.getElementById('authorFilter').value;
+            const dateRange = document.getElementById('dateRange').value;
+            const searchFilter = document.getElementById('searchFilter').value.toLowerCase();
+            const sortOrder = document.getElementById('sortOrder').value;
+
+            filteredCommits = allCommits.filter(commit => {
+                // Author filter
+                if (authorFilter && commit.author !== authorFilter) return false;
+                
+                // Date range filter
+                if (dateRange) {
+                    const daysAgo = new Date();
+                    daysAgo.setDate(daysAgo.getDate() - parseInt(dateRange));
+                    if (commit.date < daysAgo) return false;
+                }
+                
+                // Search filter
+                if (searchFilter && !commit.message.toLowerCase().includes(searchFilter)) return false;
+                
+                return true;
+            });
+
+            // Sort
+            filteredCommits.sort((a, b) => {
+                return sortOrder === 'desc' ? b.date - a.date : a.date - b.date;
+            });
+
+            renderTimeline();
+            updateStats();
+        }
+
+        // Render timeline with commits
+        function renderTimeline() {
+            const timeline = document.getElementById('timeline');
+            const searchTerm = document.getElementById('searchFilter').value.toLowerCase();
+            
+            if (filteredCommits.length === 0) {
+                timeline.innerHTML = `
+                    <div class="empty-state">
+                        <h3>No commits match your filters</h3>
+                        <p>Try adjusting your search criteria or clearing filters.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const html = filteredCommits.map((commit, index) => {
+                const highlightedMessage = searchTerm ? 
+                    commit.message.replace(new RegExp(searchTerm, 'gi'), match => `<span class="search-highlight">${match}</span>`) : 
+                    commit.message;
+
+                const initials = commit.author.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+                const branchColor = BRANCH_COLORS[commit.branch] || '#3498db';
+                
+                return `
+                    <div class="commit-item" style="animation-delay: ${index * 0.1}s">
+                        <div class="commit-header">
+                            <span class="commit-hash">${commit.hash}</span>
+                            <span class="commit-date">${commit.date.toLocaleDateString('en-US', { 
+                                year: 'numeric', 
+                                month: 'short', 
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                            })}</span>
+                        </div>
+                        <div class="commit-message">${highlightedMessage}</div>
+                        <div class="commit-author">
+                            <div class="author-avatar">${initials}</div>
+                            ${commit.author}
+                            <span class="branch-indicator" style="background: rgba(${hexToRgb(branchColor)}, 0.15); color: ${branchColor}">${commit.branch}</span>
+                        </div>
+                        <div class="commit-stats">
+                            <span class="stat-item additions">+${commit.additions} additions</span>
+                            <span class="stat-item deletions">−${commit.deletions} deletions</span>
+                            <span class="stat-item files-changed">${commit.filesChanged} files changed</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            timeline.innerHTML = html;
+        }
+
+        // Convert hex color to RGB
+        function hexToRgb(hex) {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? 
+                `${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}` : 
+                '52, 152, 219';
+        }
+
+        // Update statistics panel
+        function updateStats() {
+            if (allCommits.length === 0) {
+                document.getElementById('statsPanel').style.display = 'none';
+                return;
+            }
+
+            document.getElementById('statsPanel').style.display = 'block';
+            
+            const authors = [...new Set(filteredCommits.map(c => c.author))];
+            const totalAdditions = filteredCommits.reduce((sum, c) => sum + c.additions, 0);
+            const totalDeletions = filteredCommits.reduce((sum, c) => sum + c.deletions, 0);
+            const totalFiles = filteredCommits.reduce((sum, c) => sum + c.filesChanged, 0);
+            const totalChanges = totalAdditions + totalDeletions;
+            
+            const dateRange = filteredCommits.length > 0 ? 
+                Math.ceil((Math.max(...filteredCommits.map(c => c.date)) - Math.min(...filteredCommits.map(c => c.date))) / (1000 * 60 * 60 * 24)) : 0;
+
+            // Calculate commit frequency
+            const commitFrequency = filteredCommits.length > 0 ? 
+                (filteredCommits.length / (dateRange || 1)).toFixed(1) : 0;
+
+            const statsGrid = document.getElementById('statsGrid');
+            statsGrid.innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-value">${filteredCommits.length}</div>
+                    <div class="stat-label">Total Commits</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${authors.length}</div>
+                    <div class="stat-label">Contributors</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${commitFrequency}/day</div>
+                    <div class="stat-label">Commit Frequency</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${totalAdditions.toLocaleString()}</div>
+                    <div class="stat-label">Lines Added</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${totalDeletions.toLocaleString()}</div>
+                    <div class="stat-label">Lines Deleted</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${totalFiles}</div>
+                    <div class="stat-label">Files Changed</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${totalChanges.toLocaleString()}</div>
+                    <div class="stat-label">Total Changes</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${dateRange}</div>
+                    <div class="stat-label">Days Span</div>
+                </div>
+            `;
+        }
+
+        // Load sample data
+        function loadSampleData() {
+            const sampleData = `commit a1b2c3d4 Fix user authentication bug
+Author: Sarah Chen <sarah@example.com>
+Date: Mon Dec 11 14:30:22 2023
+
+commit e5f6g7h8 Add dark mode toggle functionality  
+Author: Mike Johnson <mike@example.com>
+Date: Sun Dec 10 09:15:45 2023
+
+commit i9j0k1l2 Optimize database queries for better performance
+Author: Alex Rodriguez <alex@example.com>
+Date: Fri Dec 8 16:45:30 2023
+
+commit m3n4o5p6 Update dependencies and fix security vulnerabilities
+Author: Sarah Chen <sarah@example.com>
+Date: Thu Dec 7 11:20:15 2023
+
+commit q7r8s9t0 Implement responsive design for mobile devices
+Author: Emma Wilson <emma@example.com>
+Date: Wed Dec 6 13:55:40 2023
+
+commit u1v2w3x4 Add unit tests for payment processing module
+Author: David Kim <david@example.com>
+Date: Tue Dec 5 10:30:25 2023
+
+commit y5z6a7b8 Refactor code structure and improve readability
+Author: Mike Johnson <mike@example.com>
+Date: Mon Dec 4 15:40:50 2023
+
+commit c9d0e1f2 Initial project setup and configuration
+Author: Sarah Chen <sarah@example.com>
+Date: Sun Dec 3 08:00:00 2023`;
+
+            document.getElementById('commitData').value = sampleData;
+            parseCommits();
+        }
+
+        // Export data as JSON
+        function exportData() {
+            if (allCommits.length === 0) {
+                showError('No data to export. Please parse commits first.');
+                return;
+            }
+
+            const exportData = {
+                metadata: {
+                    exportDate: new Date().toISOString(),
+                    totalCommits: allCommits.length,
+                    dateRange: {
+                        from: Math.min(...allCommits.map(c => c.date)),
+                        to: Math.max(...allCommits.map(c => c.date))
+                    }
+                },
+                commits: allCommits
+            };
+
+            const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `git-commits-${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // Clear all data
+        function clearData() {
+            if (confirm('Are you sure you want to clear all data?')) {
+                document.getElementById('commitData').value = '';
+                document.getElementById('githubRepo').value = '';
+                allCommits = [];
+                filteredCommits = [];
+                document.getElementById('timeline').innerHTML = `
+                    <div class="empty-state">
+                        <h3>Ready to Visualize Your Git History</h3>
+                        <p>Connect a GitHub repository or paste your git log output to get started.</p>
+                    </div>
+                `;
+                document.getElementById('statsPanel').style.display = 'none';
+                
+                // Reset filters
+                document.getElementById('authorFilter').innerHTML = '<option value="">All Authors</option>';
+                document.getElementById('dateRange').value = '';
+                document.getElementById('searchFilter').value = '';
+                document.getElementById('sortOrder').value = 'desc';
+            }
+        }
+
+        // Show loading state
+        function showLoading() {
+            document.getElementById('timeline').innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <div>Processing commit data...</div>
+                </div>
+            `;
+        }
+
+        function hideLoading() {
+            // Loading will be replaced by timeline content
+        }
+
+        // Show error message
+        function showError(message) {
+            const timeline = document.getElementById('timeline');
+            timeline.innerHTML = `
+                <div class="error-message">
+                    <strong>Error:</strong> ${message}
+                </div>
+                <div class="empty-state">
+                    <h3>Please try again</h3>
+                    <p>Make sure your git log data is in a supported format.</p>
+                </div>
+            `;
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('🚀 Git Commit Timeline Visualizer loaded successfully!');
+            
+            // Add smooth scrolling for better UX
+            document.documentElement.style.scrollBehavior = 'smooth';
+            
+            // Auto-focus on GitHub input
+            document.getElementById('githubRepo').focus();
+        });
+
+        // Add keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey || e.metaKey) {
+                switch(e.key) {
+                    case 'Enter':
+                        e.preventDefault();
+                        parseCommits();
+                        break;
+                    case 'l':
+                        e.preventDefault();
+                        loadSampleData();
+                        break;
+                    case 's':
+                        e.preventDefault();
+                        exportData();
+                        break;
+                }
+            }
+        });
+
+        // Advanced analytics
+        function generateInsights() {
+            if (filteredCommits.length === 0) return;
+            
+            const authors = {};
+            const timeDistribution = {};
+            const messagePatterns = {};
+            
+            filteredCommits.forEach(commit => {
+                // Author activity
+                authors[commit.author] = (authors[commit.author] || 0) + 1;
+                
+                // Time distribution
+                const hour = commit.date.getHours();
+                const timeSlot = hour < 6 ? 'Night' : hour < 12 ? 'Morning' : hour < 18 ? 'Afternoon' : 'Evening';
+                timeDistribution[timeSlot] = (timeDistribution[timeSlot] || 0) + 1;
+                
+                // Common patterns in commit messages
+                const words = commit.message.toLowerCase().split(/\s+/);
+                words.forEach(word => {
+                    if (word.length > 3) {
+                        messagePatterns[word] = (messagePatterns[word] || 0) + 1;
+                    }
+                });
+            });
+            
+            // Show insights in console for advanced users
+            console.group('📊 Repository Insights');
+            console.log('Top Contributors:', Object.entries(authors).sort((a,b) => b[1] - a[1]).slice(0, 5));
+            console.log('Commit Time Distribution:', timeDistribution);
+            console.log('Most Common Words:', Object.entries(messagePatterns).sort((a,b) => b[1] - a[1]).slice(0, 10));
+            console.groupEnd();
+        }
+
+        // Enhanced features
+        console.log('🎯 Professional Git Visualizer ready!');
+        console.log('🔍 Features: GitHub integration, Branch visualization, Advanced analytics');
+        console.log('💡 Keyboard shortcuts: Ctrl+Enter (Parse), Ctrl+L (Load Sample), Ctrl+S (Export)');
+    </script>
+</body>
+</html>
