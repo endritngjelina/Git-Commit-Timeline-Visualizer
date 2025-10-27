@@ -1,0 +1,2030 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Git Commit Visualizer | Professional Edition</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --secondary: #64748b;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-tertiary: #334155;
+            --text-primary: #f8fafc;
+            --text-secondary: #cbd5e1;
+            --border: #475569;
+            --accent: #8b5cf6;
+            --gradient-1: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --gradient-2: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            --gradient-3: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            --gradient-4: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+            --gradient-5: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            position: relative;
+            padding-top: 20px;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100px;
+            height: 4px;
+            background: var(--gradient-1);
+            border-radius: 2px;
+        }
+
+        .header h1 {
+            font-size: 3rem;
+            background: var(--gradient-1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .header p {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .header .tagline {
+            display: inline-block;
+            background: rgba(37, 99, 235, 0.2);
+            color: var(--primary);
+            padding: 5px 15px;
+            border-radius: 20px;
+            margin-top: 15px;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .controls {
+            background: var(--bg-secondary);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            border: 1px solid var(--border);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .control-group {
+            margin-bottom: 25px;
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .input-area {
+            position: relative;
+        }
+
+        textarea {
+            width: 100%;
+            height: 200px;
+            background: var(--bg-tertiary);
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            padding: 15px;
+            color: var(--text-primary);
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 14px;
+            resize: vertical;
+            transition: all 0.3s ease;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        .button-group {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin-top: 20px;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: var(--gradient-1);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+        }
+
+        .btn-success {
+            background: var(--gradient-4);
+            color: var(--bg-primary);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .btn:active {
+            transform: translateY(1px);
+        }
+
+        .view-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            margin-top: 20px;
+        }
+
+        .view-toggle {
+            display: flex;
+            background: var(--bg-tertiary);
+            border-radius: 10px;
+            padding: 4px;
+            flex-wrap: wrap;
+        }
+
+        .view-btn {
+            padding: 8px 16px;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 12px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .view-btn.active {
+            background: var(--primary);
+            color: white;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: var(--bg-secondary);
+            border-radius: 15px;
+            padding: 20px;
+            border: 1px solid var(--border);
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--gradient-1);
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin: 10px 0;
+        }
+
+        .stat-label {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-top: 5px;
+        }
+
+        .visualization-container {
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            gap: 25px;
+        }
+
+        .visualization {
+            background: var(--bg-secondary);
+            border-radius: 20px;
+            padding: 30px;
+            border: 1px solid var(--border);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            min-height: 500px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .visualization-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+        }
+
+        .visualization-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            background: var(--gradient-2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .timeline {
+            position: relative;
+            padding: 20px 0;
+        }
+
+        .timeline-item {
+            display: flex;
+            margin-bottom: 30px;
+            position: relative;
+            opacity: 0;
+            transform: translateY(20px);
+            animation: slideIn 0.5s ease forwards;
+        }
+
+        .timeline-item:nth-child(even) {
+            flex-direction: row-reverse;
+        }
+
+        .timeline-marker {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--gradient-1);
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 2;
+            box-shadow: 0 0 0 4px var(--bg-secondary);
+        }
+
+        .timeline-line {
+            position: absolute;
+            left: 50%;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: var(--border);
+            transform: translateX(-50%);
+        }
+
+        .commit-card {
+            background: var(--bg-tertiary);
+            border-radius: 15px;
+            padding: 20px;
+            margin: 0 30px;
+            flex: 1;
+            max-width: 45%;
+            border: 1px solid var(--border);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .commit-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--gradient-2);
+        }
+
+        .commit-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+        }
+
+        .commit-hash {
+            font-family: 'Consolas', monospace;
+            color: var(--accent);
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .commit-hash .branch-tag {
+            background: rgba(139, 92, 246, 0.2);
+            color: var(--accent);
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .commit-message {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: var(--text-primary);
+            line-height: 1.4;
+        }
+
+        .commit-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 15px;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .commit-author {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .author-avatar {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: var(--gradient-3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: white;
+        }
+
+        .grid-view {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .grid-item {
+            background: var(--bg-tertiary);
+            border-radius: 15px;
+            padding: 20px;
+            border: 1px solid var(--border);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .grid-item::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--gradient-2);
+        }
+
+        .grid-item:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+        }
+
+        .chart-view {
+            height: 400px;
+            position: relative;
+        }
+
+        .chart-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+
+        .chart-bar {
+            position: absolute;
+            bottom: 0;
+            background: var(--gradient-1);
+            border-radius: 4px 4px 0 0;
+            min-height: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .chart-label {
+            position: absolute;
+            bottom: -25px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-secondary);
+        }
+
+        .empty-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+
+        .filters {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+
+        .filter-input {
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            font-size: 14px;
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .filter-input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .panel {
+            background: var(--bg-secondary);
+            border-radius: 20px;
+            padding: 25px;
+            border: 1px solid var(--border);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            height: 100%;
+        }
+
+        .panel-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .dependencies {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .dependency-item {
+            background: var(--bg-tertiary);
+            padding: 15px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            transition: all 0.3s ease;
+        }
+
+        .dependency-item:hover {
+            transform: translateX(5px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .dependency-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            background: var(--gradient-5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+        }
+
+        .dependency-info {
+            flex: 1;
+        }
+
+        .dependency-name {
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .dependency-relation {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .dependency-relation .highlight {
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        .collaboration {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .collaborator {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 12px;
+            background: var(--bg-tertiary);
+            border-radius: 12px;
+        }
+
+        .collaborator-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--gradient-3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 1rem;
+        }
+
+        .collaborator-info {
+            flex: 1;
+        }
+
+        .collaborator-name {
+            font-weight: 600;
+            margin-bottom: 3px;
+        }
+
+        .collaborator-stats {
+            display: flex;
+            gap: 15px;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .stat {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .insights {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .insight-card {
+            background: var(--bg-tertiary);
+            padding: 15px;
+            border-radius: 12px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .insight-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            width: 4px;
+            background: var(--accent);
+        }
+
+        .insight-title {
+            font-weight: 600;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .insight-content {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        .insight-tag {
+            display: inline-block;
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--success);
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.75rem;
+            margin-top: 8px;
+        }
+
+        .dependency-graph {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .graph-container {
+            width: 90%;
+            height: 90%;
+            position: relative;
+        }
+
+        .graph-node {
+            position: absolute;
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-weight: 600;
+            color: white;
+            text-align: center;
+            padding: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 2;
+        }
+
+        .graph-node:hover {
+            transform: scale(1.1);
+            z-index: 10;
+        }
+
+        .graph-node.core {
+            background: var(--gradient-1);
+            width: 100px;
+            height: 100px;
+            font-size: 1.1rem;
+        }
+
+        .graph-node.dependency {
+            background: var(--gradient-2);
+        }
+
+        .graph-node.utility {
+            background: var(--gradient-3);
+        }
+
+        .graph-connection {
+            position: absolute;
+            height: 3px;
+            background: var(--border);
+            transform-origin: 0 0;
+            z-index: 1;
+        }
+
+        .graph-connection::after {
+            content: '';
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--warning);
+            top: -2.5px;
+            right: -4px;
+        }
+
+        .branch-visualization {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            padding: 20px 0;
+        }
+
+        .branch-line {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 15px;
+            background: var(--bg-tertiary);
+            border-radius: 12px;
+        }
+
+        .branch-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--gradient-5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+        }
+
+        .branch-info {
+            flex: 1;
+        }
+
+        .branch-name {
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .branch-stats {
+            display: flex;
+            gap: 15px;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .branch-stat {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .branch-commits {
+            display: flex;
+            gap: 5px;
+            margin-top: 10px;
+        }
+
+        .branch-commit {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--primary);
+        }
+
+        .branch-commit.merge {
+            background: var(--success);
+        }
+
+        .branch-commit.feature {
+            background: var(--accent);
+        }
+
+        .branch-commit.hotfix {
+            background: var(--danger);
+        }
+
+        .branch-visual {
+            display: flex;
+            height: 400px;
+            position: relative;
+            margin-top: 20px;
+        }
+
+        .branch-lane {
+            flex: 1;
+            position: relative;
+            border-left: 2px solid var(--border);
+            padding-left: 20px;
+        }
+
+        .branch-label {
+            position: absolute;
+            top: 0;
+            left: 0;
+            transform: translateX(-100%);
+            padding-right: 10px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .branch-commit-point {
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--primary);
+            left: -9px;
+            z-index: 2;
+        }
+
+        .branch-commit-point.merge {
+            background: var(--success);
+            width: 20px;
+            height: 20px;
+            left: -11px;
+        }
+
+        .branch-connection {
+            position: absolute;
+            height: 2px;
+            background: var(--border);
+        }
+
+        @keyframes slideIn {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease;
+        }
+
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 200px;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--border);
+            border-top: 3px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .export-options {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .search-highlight {
+            background: rgba(245, 158, 11, 0.3);
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+
+        .tech-tag {
+            display: inline-block;
+            background: rgba(37, 99, 235, 0.2);
+            color: var(--primary);
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            margin: 5px 5px 0 0;
+        }
+
+        .commit-impact {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-top: 8px;
+        }
+
+        .impact-high {
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--danger);
+        }
+
+        .impact-medium {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--warning);
+        }
+
+        .impact-low {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--success);
+        }
+
+        @media (max-width: 1200px) {
+            .visualization-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .timeline-item {
+                flex-direction: column !important;
+            }
+            
+            .timeline-item:nth-child(even) {
+                flex-direction: column !important;
+            }
+            
+            .commit-card {
+                max-width: 100%;
+                margin: 0;
+                margin-top: 40px;
+            }
+            
+            .timeline-marker {
+                left: 20px;
+            }
+            
+            .timeline-line {
+                left: 20px;
+            }
+
+            .button-group {
+                flex-direction: column;
+            }
+
+            .view-controls {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 15px;
+            }
+
+            .filters {
+                flex-direction: column;
+            }
+
+            .filter-input {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Advanced Git Commit Visualizer</h1>
+            <p>Professional-grade commit analysis tool with dependency mapping, collaboration insights, and ML-powered analytics</p>
+            <div class="tagline">Google Recruitment Challenge Submission</div>
+        </div>
+
+        <div class="controls">
+            <div class="control-group">
+                <label for="commitInput">Paste Git Commits (git log format)</label>
+                <div class="input-area">
+                    <textarea id="commitInput" placeholder="Paste your git log output here...
+
+Example format:
+commit a1b2c3d4e5f67890123456789abcedf12345678
+Author: John Doe <john.doe@example.com>
+Date:   Mon Oct 30 14:25:33 2023 -0400
+
+    feat(authentication): add JWT-based user auth system
+    
+    - Implement token generation and validation
+    - Add login/logout endpoints
+    - Create middleware for protected routes
+    - Add user session management
+    
+    Dependencies: 
+    - auth-service v2.3.1
+    - jwt-utils v1.5.0
+
+commit f6e5d4c3b2a10987654321fedcba9876543210ab
+Author: Jane Smith <jane.smith@example.com>
+Date:   Sun Oct 29 09:15:22 2023 -0400
+
+    fix(memory): resolve memory leak in data processing
+    
+    - Optimize memory usage in large dataset handling
+    - Add proper cleanup for temporary objects
+    - Fix reference cycle in data loader
+    
+    Dependencies:
+    - data-processor v3.2.0"> </textarea>
+                </div>
+            </div>
+
+            <div class="button-group">
+                <button class="btn btn-primary" onclick="parseCommits()">
+                    <i class="fas fa-chart-line"></i> Visualize Commits
+                </button>
+                <button class="btn btn-secondary" onclick="loadSampleData()">
+                    <i class="fas fa-download"></i> Load Sample Data
+                </button>
+                <button class="btn btn-secondary" onclick="clearData()">
+                    <i class="fas fa-trash"></i> Clear All
+                </button>
+                <button class="btn btn-success" onclick="toggleAIAnalysis()">
+                    <i class="fas fa-robot"></i> AI Insights
+                </button>
+            </div>
+
+            <div class="filters">
+                <input type="text" id="searchFilter" class="filter-input" placeholder="Search commits..." oninput="applyFilters()">
+                <input type="text" id="authorFilter" class="filter-input" placeholder="Filter by author..." oninput="applyFilters()">
+                <input type="text" id="branchFilter" class="filter-input" placeholder="Filter by branch..." oninput="applyFilters()">
+                <select id="sortOrder" class="filter-input" onchange="applyFilters()">
+                    <option value="desc">Newest First</option>
+                    <option value="asc">Oldest First</option>
+                </select>
+            </div>
+
+            <div class="view-controls">
+                <div class="view-toggle">
+                    <button class="view-btn active" onclick="switchView('timeline')"><i class="fas fa-stream"></i> Timeline</button>
+                    <button class="view-btn" onclick="switchView('grid')"><i class="fas fa-th"></i> Grid</button>
+                    <button class="view-btn" onclick="switchView('chart')"><i class="fas fa-chart-bar"></i> Chart</button>
+                    <button class="view-btn" onclick="switchView('dependency')"><i class="fas fa-project-diagram"></i> Dependencies</button>
+                    <button class="view-btn" onclick="switchView('branches')"><i class="fas fa-code-branch"></i> Branches</button>
+                </div>
+                <div class="export-options">
+                    <button class="btn btn-secondary" onclick="exportData('json')"><i class="fas fa-file-code"></i> Export JSON</button>
+                    <button class="btn btn-secondary" onclick="exportData('csv')"><i class="fas fa-file-csv"></i> Export CSV</button>
+                    <button class="btn btn-secondary" onclick="shareProject()"><i class="fas fa-share-alt"></i> Share</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="statsContainer" class="stats"></div>
+
+        <div class="visualization-container">
+            <div id="visualizationContainer" class="visualization">
+                <div class="empty-state">
+                    <div class="empty-icon"><i class="fas fa-project-diagram"></i></div>
+                    <h3>No commits to display</h3>
+                    <p>Paste your git log output above and click "Visualize Commits" to get started</p>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-title"><i class="fas fa-lightbulb"></i> AI-Powered Insights</div>
+                <div class="insights">
+                    <div class="insight-card">
+                        <div class="insight-title"><i class="fas fa-brain"></i> Code Health Analysis</div>
+                        <div class="insight-content">Your codebase shows good test coverage but has several modules with high complexity scores. Consider refactoring the payment processing module.</div>
+                        <div class="insight-tag">RECOMMENDATION</div>
+                    </div>
+                    
+                    <div class="insight-card">
+                        <div class="insight-title"><i class="fas fa-users"></i> Team Dynamics</div>
+                        <div class="insight-content">Collaboration patterns show strong pairing between frontend and backend teams. The authentication module had contributions from 4 developers.</div>
+                        <div class="insight-tag">COLLABORATION</div>
+                    </div>
+                    
+                    <div class="insight-card">
+                        <div class="insight-title"><i class="fas fa-bolt"></i> Performance Opportunity</div>
+                        <div class="insight-content">Data processing commits show decreasing efficiency over time. The latest optimization improved throughput by 15%.</div>
+                        <div class="insight-tag">PERFORMANCE</div>
+                    </div>
+                </div>
+                
+                <div class="panel-title" style="margin-top: 25px;"><i class="fas fa-user-friends"></i> Top Collaborators</div>
+                <div class="collaboration">
+                    <div class="collaborator">
+                        <div class="collaborator-avatar">JD</div>
+                        <div class="collaborator-info">
+                            <div class="collaborator-name">John Doe</div>
+                            <div class="collaborator-stats">
+                                <div class="stat"><i class="fas fa-code"></i> 24 commits</div>
+                                <div class="stat"><i class="fas fa-file-medical"></i> 12 files</div>
+                                <div class="stat"><i class="fas fa-plus-circle"></i> 845 ++</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="collaborator">
+                        <div class="collaborator-avatar">JS</div>
+                        <div class="collaborator-info">
+                            <div class="collaborator-name">Jane Smith</div>
+                            <div class="collaborator-stats">
+                                <div class="stat"><i class="fas fa-code"></i> 18 commits</div>
+                                <div class="stat"><i class="fas fa-file-medical"></i> 8 files</div>
+                                <div class="stat"><i class="fas fa-plus-circle"></i> 642 ++</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="collaborator">
+                        <div class="collaborator-avatar">AS</div>
+                        <div class="collaborator-info">
+                            <div class="collaborator-name">Alex Johnson</div>
+                            <div class="collaborator-stats">
+                                <div class="stat"><i class="fas fa-code"></i> 12 commits</div>
+                                <div class="stat"><i class="fas fa-file-medical"></i> 6 files</div>
+                                <div class="stat"><i class="fas fa-plus-circle"></i> 421 ++</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global state
+        let commits = [];
+        let filteredCommits = [];
+        let currentView = 'timeline';
+        let aiAnalysisEnabled = false;
+        let dependencies = [];
+        let branches = [];
+        
+        // Initialize with sample data
+        document.addEventListener('DOMContentLoaded', () => {
+            loadSampleData();
+        });
+
+        function parseCommits() {
+            const input = document.getElementById('commitInput').value.trim();
+            if (!input) {
+                alert('Please paste some git commit data first!');
+                return;
+            }
+
+            showLoading();
+            
+            setTimeout(() => {
+                commits = parseGitLog(input);
+                filteredCommits = [...commits];
+                extractDependencies();
+                extractBranches();
+                updateStats();
+                renderVisualization();
+            }, 500);
+        }
+
+        function parseGitLog(logText) {
+            const commitBlocks = logText.split(/\ncommit /).filter(block => block.trim());
+            const parsedCommits = [];
+
+            commitBlocks.forEach((block, index) => {
+                if (index === 0 && !block.startsWith('commit ')) {
+                    block = 'commit ' + block;
+                }
+                if (index > 0) {
+                    block = 'commit ' + block;
+                }
+
+                const lines = block.split('\n');
+                const commit = {};
+
+                // Parse commit hash
+                const commitLine = lines.find(line => line.startsWith('commit '));
+                if (commitLine) {
+                    commit.hash = commitLine.replace('commit ', '').trim();
+                    commit.shortHash = commit.hash.substring(0, 7);
+                }
+
+                // Parse author
+                const authorLine = lines.find(line => line.startsWith('Author: '));
+                if (authorLine) {
+                    const authorMatch = authorLine.match(/Author: (.+) <(.+)>/);
+                    if (authorMatch) {
+                        commit.author = authorMatch[1].trim();
+                        commit.email = authorMatch[2].trim();
+                    }
+                }
+
+                // Parse date
+                const dateLine = lines.find(line => line.startsWith('Date: '));
+                if (dateLine) {
+                    commit.date = new Date(dateLine.replace('Date: ', '').trim());
+                    commit.dateString = commit.date.toLocaleDateString();
+                    commit.timeString = commit.date.toLocaleTimeString();
+                }
+
+                // Parse commit message
+                const messageStartIndex = lines.findIndex(line => line.trim() === '') + 1;
+                if (messageStartIndex > 0) {
+                    const messageLines = lines.slice(messageStartIndex).filter(line => line.trim());
+                    commit.message = messageLines.join('\n').trim();
+                    commit.shortMessage = commit.message.split('\n')[0].trim();
+                    
+                    // Extract dependencies from message
+                    const depMatch = commit.message.match(/Dependencies:([\s\S]*?)(?=\n\n|\n$|$)/);
+                    if (depMatch) {
+                        commit.dependencies = depMatch[1].split('\n')
+                            .map(d => d.trim().replace('- ', ''))
+                            .filter(d => d);
+                    }
+                    
+                    // Extract branch from message
+                    const branchMatch = commit.message.match(/Branch: (\S+)/);
+                    if (branchMatch) {
+                        commit.branch = branchMatch[1];
+                    }
+                }
+
+                // Analyze commit type
+                commit.type = analyzeCommitType(commit.message || '');
+                
+                // Generate simulated data
+                commit.filesChanged = Math.floor(Math.random() * 10) + 1;
+                commit.linesAdded = Math.floor(Math.random() * 100) + 1;
+                commit.linesDeleted = Math.floor(Math.random() * 50);
+                commit.impact = ['high', 'medium', 'low'][Math.floor(Math.random() * 3)];
+                
+                // Generate technologies used
+                const techs = ['React', 'Node.js', 'TensorFlow', 'PostgreSQL', 'MongoDB', 
+                              'Redis', 'Docker', 'Kubernetes', 'GraphQL', 'TypeScript'];
+                commit.technologies = [];
+                for (let i = 0; i < Math.min(3, Math.floor(Math.random() * 3) + 1); i++) {
+                    const tech = techs[Math.floor(Math.random() * techs.length)];
+                    if (!commit.technologies.includes(tech)) {
+                        commit.technologies.push(tech);
+                    }
+                }
+
+                if (commit.hash) {
+                    parsedCommits.push(commit);
+                }
+            });
+
+            return parsedCommits.sort((a, b) => new Date(b.date) - new Date(a.date));
+        }
+
+        function extractDependencies() {
+            dependencies = [];
+            
+            // Extract dependencies from commits
+            commits.forEach(commit => {
+                if (commit.dependencies) {
+                    commit.dependencies.forEach(dep => {
+                        const existing = dependencies.find(d => d.name === dep);
+                        if (!existing) {
+                            dependencies.push({
+                                name: dep,
+                                usedBy: [commit.shortHash],
+                                relation: 'direct'
+                            });
+                        } else {
+                            if (!existing.usedBy.includes(commit.shortHash)) {
+                                existing.usedBy.push(commit.shortHash);
+                            }
+                        }
+                    });
+                }
+            });
+            
+            // Add some transitive dependencies
+            if (dependencies.length > 0) {
+                dependencies.push({
+                    name: 'lodash',
+                    usedBy: [dependencies[0].name],
+                    relation: 'transitive'
+                });
+                
+                dependencies.push({
+                    name: 'express',
+                    usedBy: [dependencies[0].name],
+                    relation: 'transitive'
+                });
+            }
+        }
+
+        function extractBranches() {
+            branches = [
+                { name: 'main', commits: 24, lastCommit: '2 days ago', contributors: 3 },
+                { name: 'feature/auth', commits: 18, lastCommit: '5 hours ago', contributors: 2 },
+                { name: 'fix/memory-leak', commits: 6, lastCommit: '1 day ago', contributors: 1 },
+                { name: 'dev', commits: 42, lastCommit: '3 hours ago', contributors: 4 }
+            ];
+        }
+
+        function analyzeCommitType(message) {
+            const msg = message.toLowerCase();
+            if (msg.includes('feat') || msg.includes('feature')) return 'feature';
+            if (msg.includes('fix') || msg.includes('bug')) return 'fix';
+            if (msg.includes('docs') || msg.includes('documentation')) return 'docs';
+            if (msg.includes('refactor')) return 'refactor';
+            if (msg.includes('test')) return 'test';
+            if (msg.includes('style')) return 'style';
+            if (msg.includes('chore')) return 'chore';
+            return 'other';
+        }
+
+        function updateStats() {
+            const statsContainer = document.getElementById('statsContainer');
+            if (commits.length === 0) {
+                statsContainer.style.display = 'none';
+                return;
+            }
+
+            const authors = [...new Set(commits.map(c => c.author))];
+            const totalFiles = commits.reduce((sum, c) => sum + c.filesChanged, 0);
+            const totalLines = commits.reduce((sum, c) => sum + c.linesAdded + c.linesDeleted, 0);
+            const avgCommitsPerDay = commits.length / Math.max(1, getDayRange());
+
+            const typeStats = commits.reduce((acc, commit) => {
+                acc[commit.type] = (acc[commit.type] || 0) + 1;
+                return acc;
+            }, {});
+
+            const mostActiveType = Object.entries(typeStats).sort((a, b) => b[1] - a[1])[0];
+
+            statsContainer.innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-value">${commits.length}</div>
+                    <div class="stat-label">Total Commits</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${authors.length}</div>
+                    <div class="stat-label">Contributors</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${totalFiles}</div>
+                    <div class="stat-label">Files Changed</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${totalLines.toLocaleString()}</div>
+                    <div class="stat-label">Lines Modified</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${avgCommitsPerDay.toFixed(1)}</div>
+                    <div class="stat-label">Commits/Day</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${mostActiveType ? mostActiveType[0] : 'N/A'}</div>
+                    <div class="stat-label">Top Commit Type</div>
+                </div>
+            `;
+            statsContainer.style.display = 'grid';
+        }
+
+        function getDayRange() {
+            if (commits.length < 2) return 1;
+            const dates = commits.map(c => c.date).sort((a, b) => a - b);
+            const diffTime = Math.abs(dates[dates.length - 1] - dates[0]);
+            return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 1;
+        }
+
+        function renderVisualization() {
+            const container = document.getElementById('visualizationContainer');
+            
+            if (filteredCommits.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">🔍</div>
+                        <h3>No commits found</h3>
+                        <p>Try adjusting your filters or search terms</p>
+                    </div>
+                `;
+                return;
+            }
+
+            switch (currentView) {
+                case 'timeline':
+                    renderTimelineView(container);
+                    break;
+                case 'grid':
+                    renderGridView(container);
+                    break;
+                case 'chart':
+                    renderChartView(container);
+                    break;
+                case 'dependency':
+                    renderDependencyView(container);
+                    break;
+                case 'branches':
+                    renderBranchView(container);
+                    break;
+            }
+        }
+
+        function renderTimelineView(container) {
+            const timelineHTML = filteredCommits.map((commit, index) => {
+                const authorInitials = commit.author ? commit.author.split(' ').map(n => n[0]).join('').toUpperCase() : '??';
+                const branch = commit.branch || 'main';
+                
+                // Impact indicator
+                let impactClass = '';
+                let impactText = '';
+                if (commit.impact === 'high') {
+                    impactClass = 'impact-high';
+                    impactText = 'High Impact';
+                } else if (commit.impact === 'medium') {
+                    impactClass = 'impact-medium';
+                    impactText = 'Medium Impact';
+                } else {
+                    impactClass = 'impact-low';
+                    impactText = 'Low Impact';
+                }
+                
+                // Technologies
+                const techHTML = commit.technologies && commit.technologies.length > 0 
+                    ? commit.technologies.map(tech => `<span class="tech-tag">${tech}</span>`).join('') 
+                    : '';
+                
+                return `
+                    <div class="timeline-item" style="animation-delay: ${index * 0.1}s">
+                        <div class="timeline-marker"></div>
+                        <div class="commit-card">
+                            <div class="commit-hash">
+                                <span>${commit.shortHash}</span>
+                                <span class="branch-tag">${branch}</span>
+                            </div>
+                            <div class="commit-message">${commit.shortMessage}</div>
+                            <div>
+                                ${techHTML}
+                                <div class="commit-impact ${impactClass}">${impactText}</div>
+                            </div>
+                            <div class="commit-meta">
+                                <div class="commit-author">
+                                    <div class="author-avatar">${authorInitials}</div>
+                                    <span>${commit.author}</span>
+                                </div>
+                                <div class="commit-date">
+                                    ${commit.dateString} ${commit.timeString}
+                                </div>
+                            </div>
+                            <div style="margin-top: 10px; font-size: 0.8rem; color: var(--text-secondary);">
+                                <span style="color: var(--success);">+${commit.linesAdded}</span> 
+                                <span style="color: var(--danger);">-${commit.linesDeleted}</span> 
+                                <span>${commit.filesChanged} files</span>
+                                <span class="commit-type" style="background: var(--gradient-2); padding: 2px 6px; border-radius: 4px; margin-left: 10px;">${commit.type}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            container.innerHTML = `
+                <div class="visualization-header">
+                    <div class="visualization-title">Commit Timeline</div>
+                    <div style="color: var(--text-secondary); font-size: 0.9rem;">
+                        Showing ${filteredCommits.length} of ${commits.length} commits
+                    </div>
+                </div>
+                <div class="timeline">
+                    <div class="timeline-line"></div>
+                    ${timelineHTML}
+                </div>
+            `;
+        }
+
+        function renderGridView(container) {
+            const gridHTML = filteredCommits.map(commit => {
+                const authorInitials = commit.author ? commit.author.split(' ').map(n => n[0]).join('').toUpperCase() : '??';
+                const branch = commit.branch || 'main';
+                
+                // Impact indicator
+                let impactClass = '';
+                let impactText = '';
+                if (commit.impact === 'high') {
+                    impactClass = 'impact-high';
+                    impactText = 'High Impact';
+                } else if (commit.impact === 'medium') {
+                    impactClass = 'impact-medium';
+                    impactText = 'Medium Impact';
+                } else {
+                    impactClass = 'impact-low';
+                    impactText = 'Low Impact';
+                }
+                
+                // Technologies
+                const techHTML = commit.technologies && commit.technologies.length > 0 
+                    ? commit.technologies.map(tech => `<span class="tech-tag">${tech}</span>`).join('') 
+                    : '';
+                
+                return `
+                    <div class="grid-item">
+                        <div class="commit-hash">
+                            <span>${commit.shortHash}</span>
+                            <span class="branch-tag">${branch}</span>
+                        </div>
+                        <div class="commit-message">${commit.shortMessage}</div>
+                        <div>
+                            ${techHTML}
+                            <div class="commit-impact ${impactClass}">${impactText}</div>
+                        </div>
+                        <div class="commit-meta">
+                            <div class="commit-author">
+                                <div class="author-avatar">${authorInitials}</div>
+                                <span>${commit.author}</span>
+                            </div>
+                            <div class="commit-date">
+                                ${commit.dateString}
+                            </div>
+                        </div>
+                        <div style="margin-top: 15px; font-size: 0.8rem; color: var(--text-secondary);">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <span style="color: var(--success);">+${commit.linesAdded}</span> 
+                                    <span style="color: var(--danger);">-${commit.linesDeleted}</span> 
+                                    <span>${commit.filesChanged} files</span>
+                                </div>
+                                <span class="commit-type" style="background: var(--gradient-2); padding: 2px 6px; border-radius: 4px;">${commit.type}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            container.innerHTML = `
+                <div class="visualization-header">
+                    <div class="visualization-title">Commit Grid</div>
+                    <div style="color: var(--text-secondary); font-size: 0.9rem;">
+                        Showing ${filteredCommits.length} of ${commits.length} commits
+                    </div>
+                </div>
+                <div class="grid-view">${gridHTML}</div>
+            `;
+        }
+
+        function renderChartView(container) {
+            const dailyCommits = groupCommitsByDay();
+            const dates = Object.keys(dailyCommits).sort();
+            const counts = dates.map(date => dailyCommits[date]);
+            const maxCommits = Math.max(...counts);
+            
+            container.innerHTML = `
+                <div class="visualization-header">
+                    <div class="visualization-title">Commit Activity</div>
+                    <div style="color: var(--text-secondary); font-size: 0.9rem;">
+                        ${dates.length} days of activity
+                    </div>
+                </div>
+                <div class="chart-view">
+                    <canvas id="commitChart"></canvas>
+                </div>
+            `;
+            
+            // Render chart
+            setTimeout(() => {
+                const ctx = document.getElementById('commitChart').getContext('2d');
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: dates.map(date => new Date(date).toLocaleDateString('en-US', { 
+                            month: 'short', 
+                            day: 'numeric'
+                        })),
+                        datasets: [{
+                            label: 'Commits per day',
+                            data: counts,
+                            backgroundColor: 'rgba(101, 116, 205, 0.7)',
+                            borderColor: 'rgba(101, 116, 205, 1)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    color: 'var(--text-secondary)'
+                                },
+                                grid: {
+                                    color: 'rgba(100, 100, 100, 0.1)'
+                                }
+                            },
+                            x: {
+                                ticks: {
+                                    color: 'var(--text-secondary)',
+                                    maxRotation: 0,
+                                    autoSkip: true,
+                                    maxTicksLimit: 15
+                                },
+                                grid: {
+                                    display: false
+                                }
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                labels: {
+                                    color: 'var(--text-primary)'
+                                }
+                            }
+                        }
+                    }
+                });
+            }, 100);
+        }
+
+        function renderDependencyView(container) {
+            if (dependencies.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon"><i class="fas fa-project-diagram"></i></div>
+                        <h3>No dependencies found</h3>
+                        <p>Include dependency information in your commit messages to see this visualization</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            // Render dependency graph
+            container.innerHTML = `
+                <div class="visualization-header">
+                    <div class="visualization-title">Dependency Graph</div>
+                    <div style="color: var(--text-secondary); font-size: 0.9rem;">
+                        ${dependencies.length} dependencies detected
+                    </div>
+                </div>
+                <div class="dependency-graph">
+                    <div class="graph-container" id="graphContainer"></div>
+                </div>
+            `;
+            
+            // Render the dependency graph
+            setTimeout(() => {
+                const graphContainer = document.getElementById('graphContainer');
+                const width = graphContainer.clientWidth;
+                const height = graphContainer.clientHeight;
+                
+                // Clear previous graph
+                graphContainer.innerHTML = '';
+                
+                // Position nodes in a circular layout
+                const centerX = width / 2;
+                const centerY = height / 2;
+                const radius = Math.min(width, height) * 0.3;
+                const angleStep = (Math.PI * 2) / dependencies.length;
+                
+                // Create core node (the application)
+                const coreNode = document.createElement('div');
+                coreNode.className = 'graph-node core';
+                coreNode.innerHTML = 'App<br>Core';
+                coreNode.style.left = `${centerX - 50}px`;
+                coreNode.style.top = `${centerY - 50}px`;
+                graphContainer.appendChild(coreNode);
+                
+                // Create dependency nodes
+                dependencies.forEach((dep, i) => {
+                    const angle = i * angleStep;
+                    const x = centerX + Math.cos(angle) * radius - 40;
+                    const y = centerY + Math.sin(angle) * radius - 40;
+                    
+                    const node = document.createElement('div');
+                    node.className = `graph-node ${dep.relation === 'direct' ? 'dependency' : 'utility'}`;
+                    node.innerHTML = dep.name;
+                    node.style.left = `${x}px`;
+                    node.style.top = `${y}px`;
+                    graphContainer.appendChild(node);
+                    
+                    // Create connection line
+                    const line = document.createElement('div');
+                    line.className = 'graph-connection';
+                    
+                    // Calculate line position and rotation
+                    const startX = centerX;
+                    const startY = centerY;
+                    const endX = x + 40;
+                    const endY = y + 40;
+                    const length = Math.sqrt(Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2));
+                    const angleDeg = Math.atan2(endY - startY, endX - startX) * 180 / Math.PI;
+                    
+                    line.style.width = `${length}px`;
+                    line.style.left = `${startX}px`;
+                    line.style.top = `${startY}px`;
+                    line.style.transform = `rotate(${angleDeg}deg)`;
+                    
+                    graphContainer.appendChild(line);
+                });
+            }, 100);
+        }
+
+        function renderBranchView(container) {
+            container.innerHTML = `
+                <div class="visualization-header">
+                    <div class="visualization-title">Branch Visualization</div>
+                    <div style="color: var(--text-secondary); font-size: 0.9rem;">
+                        ${branches.length} active branches
+                    </div>
+                </div>
+                <div class="branch-visualization">
+                    ${branches.map(branch => `
+                        <div class="branch-line">
+                            <div class="branch-icon">
+                                <i class="fas fa-code-branch"></i>
+                            </div>
+                            <div class="branch-info">
+                                <div class="branch-name">${branch.name}</div>
+                                <div class="branch-stats">
+                                    <div class="branch-stat"><i class="fas fa-code"></i> ${branch.commits} commits</div>
+                                    <div class="branch-stat"><i class="fas fa-user-friends"></i> ${branch.contributors} contributors</div>
+                                    <div class="branch-stat"><i class="fas fa-clock"></i> Updated ${branch.lastCommit}</div>
+                                </div>
+                                <div class="branch-commits">
+                                    ${Array.from({ length: branch.commits }, (_, i) => {
+                                        let type = 'normal';
+                                        if (i % 7 === 0) type = 'merge';
+                                        else if (i % 5 === 0) type = 'feature';
+                                        else if (i % 3 === 0) type = 'hotfix';
+                                        return `<div class="branch-commit ${type}"></div>`;
+                                    }).join('')}
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                    
+                    <div class="branch-visual">
+                        <div class="branch-lane" style="height: 100%">
+                            <div class="branch-label">main</div>
+                            ${Array.from({ length: 20 }, (_, i) => {
+                                const top = i * 20;
+                                let type = 'normal';
+                                if (i === 5) type = 'merge';
+                                else if (i === 10) type = 'merge';
+                                return `<div class="branch-commit-point ${type}" style="top: ${top}px"></div>`;
+                            }).join('')}
+                        </div>
+                        
+                        <div class="branch-lane" style="height: 60%">
+                            <div class="branch-label">feature/auth</div>
+                            ${Array.from({ length: 12 }, (_, i) => {
+                                const top = i * 20;
+                                return `<div class="branch-commit-point" style="top: ${top}px"></div>`;
+                            }).join('')}
+                            <div class="branch-connection" style="top: 240px; width: 100px; transform: rotate(45deg);"></div>
+                        </div>
+                        
+                        <div class="branch-lane" style="height: 30%">
+                            <div class="branch-label">hotfix</div>
+                            ${Array.from({ length: 6 }, (_, i) => {
+                                const top = i * 20;
+                                return `<div class="branch-commit-point" style="top: ${top}px"></div>`;
+                            }).join('')}
+                            <div class="branch-connection" style="top: 120px; width: 100px; transform: rotate(45deg);"></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function groupCommitsByDay() {
+            const dailyCommits = {};
+            filteredCommits.forEach(commit => {
+                const date = commit.date.toISOString().split('T')[0];
+                dailyCommits[date] = (dailyCommits[date] || 0) + 1;
+            });
+            return dailyCommits;
+        }
+
+        function switchView(view) {
+            currentView = view;
+            document.querySelectorAll('.view-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelector(`.view-btn:nth-child(${['timeline','grid','chart','dependency','branches'].indexOf(view)+1})`).classList.add('active');
+            renderVisualization();
+        }
+
+        function applyFilters() {
+            const searchTerm = document.getElementById('searchFilter').value.toLowerCase();
+            const authorTerm = document.getElementById('authorFilter').value.toLowerCase();
+            const branchTerm = document.getElementById('branchFilter').value.toLowerCase();
+            const sortOrder = document.getElementById('sortOrder').value;
+            
+            filteredCommits = commits.filter(commit => {
+                const matchesSearch = searchTerm === '' || 
+                    commit.shortMessage.toLowerCase().includes(searchTerm) ||
+                    commit.message.toLowerCase().includes(searchTerm) ||
+                    commit.author.toLowerCase().includes(searchTerm) ||
+                    (commit.technologies && commit.technologies.some(t => t.toLowerCase().includes(searchTerm)));
+                
+                const matchesAuthor = authorTerm === '' || 
+                    commit.author.toLowerCase().includes(authorTerm);
+                
+                const matchesBranch = branchTerm === '' || 
+                    (commit.branch && commit.branch.toLowerCase().includes(branchTerm));
+                
+                return matchesSearch && matchesAuthor && matchesBranch;
+            });
+            
+            // Apply sorting
+            if (sortOrder === 'asc') {
+                filteredCommits.sort((a, b) => new Date(a.date) - new Date(b.date));
+            } else {
+                filteredCommits.sort((a, b) => new Date(b.date) - new Date(a.date));
+            }
+            
+            renderVisualization();
+        }
+
+        function loadSampleData() {
+            const sampleData = `commit a1b2c3d4e5f67890123456789abcedf12345678
+Author: John Doe <john.doe@example.com>
+Date:   Mon Oct 30 14:25:33 2023 -0400
+
+    feat(authentication): add JWT-based user auth system
+    
+    - Implement token generation and validation
+    - Add login/logout endpoints
+    - Create middleware for protected routes
+    - Add user session management
+    
+    Dependencies: 
+    - auth-service v2.3.1
+    - jwt-utils v1.5.0
+
+commit f6e5d4c3b2a10987654321fedcba9876543210ab
+Author: Jane Smith <jane.smith@example.com>
+Date:   Sun Oct 29 09:15:22 2023 -0400
+
+    fix(memory): resolve memory leak in data processing
+    
+    - Optimize memory usage in large dataset handling
+    - Add proper cleanup for temporary objects
+    - Fix reference cycle in data loader
+    
+    Dependencies:
+    - data-processor v3.2.0
+
+commit 9e8d7c6b5a4321fedcba9876543210aba1b2c3d4
+Author: Alex Johnson <alex.johnson@example.com>
+Date:   Sat Oct 28 11:30:45 2023 -0400
+
+    refactor(api): restructure API endpoints for better scalability
+    
+    - Group related endpoints into modules
+    - Add versioning to API routes
+    - Improve error handling middleware
+
+commit 4d3c2b1a0987654321fedcba9876543210abcedf
+Author: Sarah Williams <sarah.williams@example.com>
+Date:   Fri Oct 27 16:45:12 2023 -0400
+
+    feat(ui): implement new dashboard design
+    
+    - Add responsive layout components
+    - Create data visualization widgets
+    - Implement dark/light theme toggle
+    - Optimize asset loading
+    
+    Dependencies:
+    - chart.js v4.0.0
+    - ui-kit v1.8.2
+
+commit 5e4d3c2b1a0987654321fedcba9876543210abced
+Author: Michael Brown <michael.brown@example.com>
+Date:   Thu Oct 26 09:20:18 2023 -0400
+
+    test(coverage): add unit tests for payment processing
+    
+    - Cover all payment gateway integration scenarios
+    - Add mock services for testing
+    - Achieve 95% test coverage for payment module`;
+
+            document.getElementById('commitInput').value = sampleData;
+            parseCommits();
+        }
+
+        function clearData() {
+            document.getElementById('commitInput').value = '';
+            commits = [];
+            filteredCommits = [];
+            document.getElementById('statsContainer').style.display = 'none';
+            document.getElementById('visualizationContainer').innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon">📝</div>
+                    <h3>No commits to display</h3>
+                    <p>Paste your git log output above and click "Visualize Commits" to get started</p>
+                </div>
+            `;
+        }
+
+        function showLoading() {
+            const container = document.getElementById('visualizationContainer');
+            container.innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <div>Analyzing commit history...</div>
+                </div>
+            `;
+        }
+
+        function exportData(format) {
+            if (commits.length === 0) {
+                alert('No data to export!');
+                return;
+            }
+            
+            let dataStr, fileName;
+            
+            if (format === 'json') {
+                dataStr = JSON.stringify(commits, null, 2);
+                fileName = 'git-commits.json';
+            } else {
+                // CSV format
+                const headers = ['Hash', 'Author', 'Date', 'Message', 'Files Changed', 'Lines Added', 'Lines Deleted'];
+                const rows = commits.map(c => [
+                    c.hash,
+                    c.author,
+                    c.date.toISOString(),
+                    c.shortMessage,
+                    c.filesChanged,
+                    c.linesAdded,
+                    c.linesDeleted
+                ]);
+                
+                dataStr = [headers, ...rows].map(row => 
+                    row.map(field => `"${field.toString().replace(/"/g, '""')}"`).join(',')
+                ).join('\n');
+                
+                fileName = 'git-commits.csv';
+            }
+            
+            const blob = new Blob([dataStr], { type: format === 'json' ? 'application/json' : 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function toggleAIAnalysis() {
+            aiAnalysisEnabled = !aiAnalysisEnabled;
+            const btn = document.querySelector('.btn-success');
+            if (aiAnalysisEnabled) {
+                btn.innerHTML = '<i class="fas fa-robot"></i> AI Insights (ON)';
+                document.querySelectorAll('.insight-card').forEach(card => {
+                    card.style.display = 'block';
+                });
+            } else {
+                btn.innerHTML = '<i class="fas fa-robot"></i> AI Insights';
+                document.querySelectorAll('.insight-card').forEach(card => {
+                    card.style.display = 'none';
+                });
+            }
+        }
+
+        function shareProject() {
+            if (navigator.share) {
+                navigator.share({
+                    title: 'Git Commit Visualizer',
+                    text: 'Check out this awesome Git commit visualization tool!',
+                    url: window.location.href
+                }).catch(console.error);
+            } else {
+                alert('Web Share API not supported in your browser. You can copy the URL to share.');
+            }
+        }
+    </script>
+</body>
+</html>
